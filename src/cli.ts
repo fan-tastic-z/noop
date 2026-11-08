@@ -24,7 +24,7 @@ import { medic } from "./medic";
 import { githubStarved } from "./github";
 import { doctor, visual } from "./visual";
 import { answerFromChat, appendEvent, cancelTask, drainInbound, feed, handleOwnerMessage, mediaDays, pruneMedia, recentChat, setApplyOp, setCancelTask, setUpdateFleet, onSettingsSaved, startServer, status as hubStatus } from "./server";
-import { followUpTarget, reopenTask, type BrainOut, ClaudeModel, SYSTEM, dataActs, localStore, logBrain, think } from "./brain";
+import { followUpTarget, reopenTask, type BrainOut, ClaudeModel, systemPrompt, dataActs, localStore, logBrain, think } from "./brain";
 import { runTool } from "../cloud/src/tools";
 import { cloudDeploy, startCloudBridge } from "./cloud";
 import { adoptCloudUrl, readHubToml } from "./sync";
@@ -822,7 +822,7 @@ async function daemon(cfg: Cfg) {
   });
   setApplyOp((op) => runTool(store, op?.tool, op));
   const model = new ClaudeModel(String(cfg.router?.model ?? "claude-haiku-5-5"), String(cfg.router?.cli ?? "claude"), (cfg.router?.timeout_seconds ?? 45) * 1000);
-  if (isPrimary(cfg, host) && Bun.which(String(cfg.router?.cli ?? "claude"))) model.warm(SYSTEM);
+  if (isPrimary(cfg, host) && Bun.which(String(cfg.router?.cli ?? "claude"))) model.warm(systemPrompt(cfg.owner?.name));
   if (isPrimary(cfg, host)) startServer(cfg, async (text, { reply, answered, sentAt, thread, channel }) => {
     const got = Date.now();
     const room = channel ? channels().find((c) => c.slug === channel) : undefined;
@@ -831,7 +831,7 @@ async function daemon(cfg: Cfg) {
     const post = (r: string, ref?: string) => appendEvent({ from: "hub", kind: "system", text: r.slice(0, 2000), ...(ref ? { ref } : {}), ...(thread ? { thread } : {}), ...(room ? { channel: room.slug } : {}) });
     let out: BrainOut;
     try {
-      out = await think(m, store, model, post);
+      out = await think(m, store, model, post, systemPrompt(cfg.owner?.name));
       if (!out.calls.length && !out.reply && out.rounds >= 4) throw new Error("no answer");
     } catch (err) {
       // no model (CLI missing, logged out, timeout): the message still becomes work, silently — never lost, never canned

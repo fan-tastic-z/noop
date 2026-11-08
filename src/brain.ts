@@ -164,8 +164,8 @@ export class ClaudeModel implements Model {
 const BRAIN_TOOLS = toolsFor("brain");
 const MAX_ROUNDS = 4;
 
-export const SYSTEM = `You are Noop: the front of the owner's AI agent team, answering in the team chat channel the way a sharp
-chief of staff would in a chat app. The owner (Jason, CEO) writes tersely, usually in Chinese.
+export const systemPrompt = (owner?: string) => `You are Noop: the front of the owner's AI agent team, answering in the team chat channel the way a sharp
+chief of staff would in a chat app. The owner (${owner?.trim() || "the owner"}, CEO) writes tersely, usually in Chinese.
 
 You act through tools. Each turn, answer with exactly ONE JSON object and nothing else:
 {"calls": [{"tool": "<name>", "args": {…}}], "reply": "<what you say in the channel, or empty>"}
@@ -268,10 +268,10 @@ export function parseTurn(out: string): { calls: { tool: string; args: any }[]; 
 
 /** One owner message → reply + tool calls. `post` puts the reply in the channel (as soon as it is final, before the
  * writes run, so the owner sees it within seconds even when a write syncs the data repo). */
-export async function think(m: BrainIn, st: ToolStore, model: Model, post: (reply: string, ref?: string) => void): Promise<BrainOut> {
+export async function think(m: BrainIn, st: ToolStore, model: Model, post: (reply: string, ref?: string) => void, system = systemPrompt()): Promise<BrainOut> {
   const t0 = Date.now();
   const res: BrainOut = { reply: "", calls: [], rounds: 0, ms: { model: [], total: 0 } };
-  const conv = await model.open(SYSTEM);
+  const conv = await model.open(system);
   try {
     let input = context(st, m);
     for (let round = 0; round < MAX_ROUNDS; round++) {
