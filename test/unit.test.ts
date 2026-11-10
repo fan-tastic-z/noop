@@ -34,6 +34,12 @@ test("external signature links the Noop name to its site", () => {
 test("result parsing", () => {
   expect(parseResult('blah\n```json\n{"status":"done","summary":"ok"}\n```').status).toBe("done");
   expect(parseResult("no block").status).toBe("failed");
+  // agents write multi-line summaries as raw newlines inside the JSON string (T-0162); that block must still parse
+  const r = parseResult('```json\n{\n  "status": "done",\n  "summary": "日报已写入。五行摘要：\n1. GitHub 全天 0 提交。\n2. cindy#6105 等 owner 批准。",\n  "lessons": ["graphql 用 total* 字段"],\n  "channels": ["daily-reports"]\n}\n```') as any;
+  expect(r.status).toBe("done");
+  expect(r.summary).toContain("\n2.");
+  expect(r.channels).toEqual(["daily-reports"]);
+  expect(parseResult('```json\n{"status":"done","summary":"a\\tb"}\n```').summary).toBe("a\tb"); // already-escaped stays escaped
 });
 
 test("owner image uploads: images only, 10 MB, attachments are the hub's own media", async () => {

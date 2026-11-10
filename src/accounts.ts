@@ -187,7 +187,7 @@ export async function startLogin(a: Account, cfg: Cfg) {
   const strip = (t: string) => t.replace(/\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07/g, "");
   const onData = async (chunk: string) => {
     buf += strip(chunk);
-    const url = buf.match(/https:\/\/\S+/)?.[0];
+    const url = buf.match(/https:\/\/\S+/)?.[0].replace(/[)\]>'".,;:!]+$/, ""); // codex wraps the URL in parentheses; don't ship the closing one
     const code = buf.match(/\b([A-Z0-9]{4}-[A-Z0-9]{4,5})\b/)?.[1]; // device code (codex)
     if (url && !sent && (needsCode || code || buf.length > 2000 || /enter|code/i.test(buf))) {
       sent = true;

@@ -251,11 +251,29 @@ export async function runAgent(cli: string, prompt: string, cwd: string, cfg: Cf
   return out + (code ? `\n[exit ${code}] ${err.slice(-2000)}` : "");
 }
 
+/** Agents often emit pretty JSON whose string values hold raw newlines (a multi-line summary). JSON.parse rejects
+ *  unescaped control characters, so escape those — and only those — before parsing; valid JSON passes through unchanged. */
+function loosenJson(s: string): string {
+  let out = "", inStr = false, esc = false;
+  for (const ch of s) {
+    if (!inStr) { if (ch === '"') inStr = true; out += ch; continue; }
+    if (esc) { out += ch; esc = false; continue; }
+    if (ch === "\\") { out += ch; esc = true; continue; }
+    if (ch === '"') { inStr = false; out += ch; continue; }
+    if (ch === "\n") out += "\\n";
+    else if (ch === "\r") out += "\\r";
+    else if (ch === "\t") out += "\\t";
+    else if (ch < " ") out += `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`;
+    else out += ch;
+  }
+  return out;
+}
+
 export function parseResult(out: string): Result {
   const blocks = [...out.matchAll(/```json\s*(\{[\s\S]*?\})\s*```/g)].map((m) => m[1]).reverse();
   for (const b of blocks) {
     try {
-      const r = JSON.parse(b);
+      const r = JSON.parse(loosenJson(b));
       if (r.status) return r;
     } catch {}
   }
